@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>glass music player · ambient</title>
+  <!-- Font Awesome 6 (free) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background: #1f0d05;
+      background-image: radial-gradient(circle at 50% 30%, #d4883a 0%, #b8621b 25%, #30160a 90%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    /* full-screen edge-to-edge container with centering */
+    .player-stage {
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
+      min-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      gap: 40px;
+      padding: 20px 16px 40px;
+    }
+
+    /* --- COVER FLOW CAROUSEL (HERO) --- */
+    .cover-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      position: relative;
+      height: 420px;
+      width: 100%;
+      perspective: 1200px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      position: relative;
+      width: 260px;
+      height: 340px;
+      border-radius: 24px;
+      background: rgba(30, 20, 15, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 30px 50px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+      transition: all 450ms cubic-bezier(0.25, 1, 0.5, 1);
+      overflow: hidden;
+      flex-shrink: 0;
+      cursor: pointer;
+      transform-origin: center center;
+    }
+
+    .card .artwork {
+      width: 100%;
+      height: 75%;
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      color: rgba(255, 255, 255, 0.35);
+      background-color: #2f1d15;
+      background-blend-mode: overlay;
+    }
+
+    /* frosted bottom overlay */
+    .card .info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 25%;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: 0.3s;
+    }
+
+    .card .info .track {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: -0.3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card .info .artist {
+      font-size: 14px;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* active card (center) */
+    .card.active {
+      transform: scale(1.0) translateX(0) rotateY(0deg);
+      z-index: 10;
+      opacity: 1;
+      filter: blur(0);
+      box-shadow: 0 40px 60px -15px #000000cc, 0 0 0 1px rgba(255, 215, 140, 0.3);
+      border-color: rgba(255, 215, 140, 0.4);
+    }
+
+    /* left & right side cards */
+    .card.left-1 {
+      transform: scale(0.85) translateX(-80px) rotateY(8deg);
+      z-index: 5;
+      opacity: 0.6;
+      filter: blur(1px);
+    }
+
+    .card.right-1 {
+      transform: scale(0.85) translateX(80px) rotateY(-8deg);
+      z-index: 5;
+      opacity: 0.6;
+      filter: blur(1px);
+    }
+
+    .card.left-2 {
+      transform: scale(0.75) translateX(-160px) rotateY(12deg);
+      z-index: 2;
+      opacity: 0.4;
+      filter: blur(2px);
+    }
+
+    .card.right-2 {
+      transform: scale(0.75) translateX(160px) rotateY(-12deg);
+      z-index: 2;
+      opacity: 0.4;
+      filter: blur(2px);
+    }
+
+    /* hover effect */
+    .card:hover {
+      transform: scale(1.02) translateX(0) rotateY(0deg) !important;
+      z-index: 20 !important;
+      opacity: 1 !important;
+      filter: blur(0) !important;
+    }
+
+    /* --- BOTTOM CONTROL DOCK (floating glass bar) --- */
+    .dock {
+      width: 100%;
+      max-width: 900px;
+      height: 72px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border-radius: 36px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 30px rgba(210, 140, 70, 0.2) inset;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      gap: 16px;
+      transition: box-shadow 0.3s, border-color 0.3s;
+      margin-top: 10px;
+    }
+
+    .dock:hover {
+      border-color: rgba(255, 215, 140, 0.4);
+      box-shadow: 0 25px 45px rgba(0, 0, 0, 0.45), 0 0 30px rgba(210, 140, 70, 0.3) inset;
+    }
+
+    /* playback controls group */
+    .playback-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .ctrl-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      opacity: 0.9;
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+    }
+
+    .ctrl-btn:hover {
+      opacity: 1;
+      transform: scale(1.1);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .ctrl-btn.play-pause {
+      background: #ffffff;
+      color: #1f1a16;
+      border-radius: 30px;
+      width: 44px;
+      height: 44px;
+      font-size: 18px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+      transition: all 0.2s;
+    }
+
+    .ctrl-btn.play-pause:hover {
+      background: #fff5e6;
+      transform: scale(1.05);
+    }
+
+    /* mini player card */
+    .mini-player {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 30px;
+      padding: 6px 12px 6px 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      gap: 12px;
+      min-width: 0;
+      max-width: 420px;
+      transition: background 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mini-thumb {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(145deg, #a35c2e, #5e2a12);
+      border-radius: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      color: rgba(255, 255, 255, 0.7);
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 215, 140, 0.3);
+    }
+
+    .mini-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .mini-info .mini-title {
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mini-info .mini-artist {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 11px;
+      font-weight: 400;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mini-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .mini-actions i {
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .mini-actions i:hover {
+      color: #fff;
+      transform: scale(1.1);
+    }
+
+    /* progress bar inside mini player (bottom edge) */
+    .mini-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      width: 48%;
+      background: #ffffff;
+      border-radius: 2px;
+      box-shadow: 0 0 8px #ffbc6e;
+      animation: progressPulse 18s linear infinite alternate;
+    }
+
+    @keyframes progressPulse {
+      0% { width: 12%; }
+      30% { width: 35%; }
+      60% { width: 68%; }
+      100% { width: 92%; }
+    }
+
+    /* secondary utility controls */
+    .utility-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .utility-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      opacity: 0.8;
+      font-size: 18px;
+      cursor: pointer;
+      transition: 0.2s;
+      padding: 6px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .utility-btn:hover {
+      opacity: 1;
+      transform: scale(1.1);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .volume-slider {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .volume-track {
+      width: 60px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      position: relative;
+    }
+
+    .volume-fill {
+      width: 65%;
+      height: 4px;
+      background: #ffffff;
+      border-radius: 4px;
+      box-shadow: 0 0 6px #ffb26b;
+    }
+
+    /* responsive adjustments */
+    @media (max-width: 900px) {
+      .dock {
+        height: auto;
+        flex-wrap: wrap;
+        padding: 16px 20px;
+        gap: 16px;
+        border-radius: 30px;
+      }
+
+      .mini-player {
+        max-width: 100%;
+        order: 3;
+        flex: 1 1 100%;
+      }
+
+      .cover-flow {
+        height: 360px;
+      }
+
+      .card {
+        width: 220px;
+        height: 300px;
+      }
+
+      .card.left-1 { transform: scale(0.85) translateX(-55px) rotateY(8deg); }
+      .card.right-1 { transform: scale(0.85) translateX(55px) rotateY(-8deg); }
+      .card.left-2 { transform: scale(0.75) translateX(-110px) rotateY(12deg); }
+      .card.right-2 { transform: scale(0.75) translateX(110px) rotateY(-12deg); }
+    }
+
+    @media (max-width: 600px) {
+      .cover-flow {
+        height: 300px;
+      }
+
+      .card {
+        width: 180px;
+        height: 250px;
+      }
+
+      .card .info .track { font-size: 15px; }
+      .card .info .artist { font-size: 12px; }
+
+      .card.left-1 { transform: scale(0.85) translateX(-35px) rotateY(8deg); }
+      .card.right-1 { transform: scale(0.85) translateX(35px) rotateY(-8deg); }
+      .card.left-2 { transform: scale(0.75) translateX(-70px) rotateY(12deg); }
+      .card.right-2 { transform: scale(0.75) translateX(70px) rotateY(-12deg); }
+
+      .utility-btn {
+        font-size: 15px;
+        padding: 4px;
+      }
+
+      .volume-track {
+        width: 40px;
+      }
+
+      .playback-group {
+        gap: 8px;
+      }
+
+      .ctrl-btn.play-pause {
+        width: 38px;
+        height: 38px;
+        font-size: 16px;
+      }
+
+      .dock {
+        padding: 12px 16px;
+      }
+    }
+
+    /* pure decoration – subtle grain overlay (optional) */
+    .player-stage::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle at 70% 20%, rgba(255, 200, 120, 0.15), transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ensure z-index above the pseudo */
+    .cover-flow, .dock {
+      position: relative;
+      z-index: 2;
+    }
+  </style>
+</head>
+<body>
+  <div class="player-stage">
+    <!-- COVER FLOW CAROUSEL -->
+    <div class="cover-flow">
+      <!-- left-2 card -->
+      <div class="card left-2" data-index="0">
+        <div class="artwork" style="background-image: linear-gradient(145deg, #543a28, #2c1b10);">
+          <i class="fas fa-music"></i>
+        </div>
+        <div class="info">
+          <div class="track">Electric Bloom</div>
+          <div class="artist">Nova Waves</div>
+        </div>
+      </div>
+
+      <!-- left-1 card -->
+      <div class="card left-1" data-index="1">
+        <div class="artwork" style="background-image: linear-gradient(145deg, #7a4a2b, #3e2316);">
+          <i class="fas fa-headphones"></i>
+        </div>
+        <div class="info">
+          <div class="track">Midnight City</div>
+          <div class="artist">Luna Ray</div>
+        </div>
+      </div>
+
+      <!-- center active card -->
+      <div class="card active" data-index="2">
+        <div class="artwork" style="background-image: linear-gradient(145deg, #b87b4b, #6b3a1f);">
+          <i class="fas fa-compact-disc" style="font-size: 4rem; opacity: 0.8;"></i>
+        </div>
+        <div class="info">
+          <div class="track">Velvet Horizon</div>
+          <div class="artist">Aurora Lane</div>
+        </div>
+      </div>
+
+      <!-- right-1 card -->
+      <div class="card right-1" data-index="3">
+        <div class="artwork" style="background-image: linear-gradient(145deg, #966a42, #4d2d19);">
+          <i class="fas fa-waveform"></i>
+        </div>
+        <div class="info">
+          <div class="track">Golden Dust</div>
+          <div class="artist">The Embers</div>
+        </div>
+      </div>
+
+      <!-- right-2 card -->
+      <div class="card right-2" data-index="4">
+        <div class="artwork" style="background-image: linear-gradient(145deg, #c49a6c, #7a4a2a);">
+          <i class="fas fa-sun"></i>
+        </div>
+        <div class="info">
+          <div class="track">Amber Sky</div>
+          <div class="artist">Solstice</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM CONTROL DOCK (FLOATING GLASS BAR) -->
+    <div class="dock">
+      <!-- Left: Playback Controls -->
+      <div class="playback-group">
+        <button class="ctrl-btn" aria-label="Previous"><i class="fas fa-backward-step"></i></button>
+        <button class="ctrl-btn play-pause" aria-label="Pause / Play"><i class="fas fa-pause"></i></button>
+        <button class="ctrl-btn" aria-label="Next"><i class="fas fa-forward-step"></i></button>
+      </div>
+
+      <!-- Middle: Mini-player card -->
+      <div class="mini-player">
+        <div class="mini-thumb">
+          <i class="fas fa-music"></i>
+        </div>
+        <div class="mini-info">
+          <span class="mini-title">Velvet Horizon</span>
+          <span class="mini-artist">Aurora Lane · album</span>
+        </div>
+        <div class="mini-actions">
+          <i class="fas fa-chart-simple"></i>
+          <i class="fas fa-ellipsis"></i>
+        </div>
+        <!-- animated progress bar (bottom edge) -->
+        <div class="mini-progress"></div>
+      </div>
+
+      <!-- Right: Utility controls -->
+      <div class="utility-group">
+        <button class="utility-btn" aria-label="Lyrics"><i class="fas fa-quote-right"></i></button>
+        <button class="utility-btn" aria-label="Queue"><i class="fas fa-list-ul"></i></button>
+        <div class="volume-slider">
+          <button class="utility-btn" aria-label="Volume"><i class="fas fa-volume-high"></i></button>
+          <div class="volume-track">
+            <div class="volume-fill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Interactive carousel: click a card to bring it to center
+    (function() {
+      const cards = document.querySelectorAll('.card');
+      const cardArray = Array.from(cards);
+      // order by visual index: left-2, left-1, active, right-1, right-2
+      // but we can base on DOM order. Our DOM order is left-2 (0), left-1 (1), active (2), right-1 (3), right-2 (4)
+      // so we can shift classes based on the clicked index.
+
+      function updateCarousel(clickedIndex) {
+        // remove all positional classes
+        cardArray.forEach(card => {
+          card.classList.remove('active', 'left-1', 'right-1', 'left-2', 'right-2');
+        });
+
+        // set new classes based on clicked index (0..4)
+        // active at clicked index
+        // left-1 = clickedIndex - 1 (with wrap)
+        // right-1 = clickedIndex + 1
+        // left-2 = clickedIndex - 2
+        // right-2 = clickedIndex + 2
+        const len = cardArray.length;
+        for (let i = 0; i < len; i++) {
+          const offset = (i - clickedIndex + len) % len;
+          if (offset === 0) {
+            cardArray[i].classList.add('active');
+          } else if (offset === 1) {
+            cardArray[i].classList.add('right-1');
+          } else if (offset === len - 1) {
+            cardArray[i].classList.add('left-1');
+          } else if (offset === 2) {
+            cardArray[i].classList.add('right-2');
+          } else if (offset === len - 2) {
+            cardArray[i].classList.add('left-2');
+          } else {
+            // fallback for any extra (shouldn't happen with 5 cards)
+            cardArray[i].classList.add('left-2');
+          }
+        }
+      }
+
+      // attach click handlers
+      cardArray.forEach((card, idx) => {
+        card.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // Only update if not already active
+          if (!card.classList.contains('active')) {
+            updateCarousel(idx);
+          }
+        });
+      });
+
+      // optional: keyboard navigation (left/right arrows) for extra flair
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          const activeCard = document.querySelector('.card.active');
+          if (!activeCard) return;
+          const currentIndex = cardArray.indexOf(activeCard);
+          let nextIndex;
+          if (e.key === 'ArrowRight') {
+            nextIndex = (currentIndex + 1) % cardArray.length;
+          } else {
+            nextIndex = (currentIndex - 1 + cardArray.length) % cardArray.length;
+          }
+          updateCarousel(nextIndex);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
